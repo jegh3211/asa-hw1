@@ -1,0 +1,66 @@
+---
+title: "asa assign1"
+author: "jueun wi"
+date: "2026-10-12"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_knit$set(root.dir = "..")
+```
+
+# Problem 1
+
+## (a)
+```{r}
+set.seed(1)
+n = 200
+x = seq(0, 1, length.out = n)
+y = sin(2*pi*x) + rnorm(n, sd = 0.15)
+
+dat = data.frame(x = x, y = y)
+write.csv(dat, here::here("data", "sim_data.csv"), row.names = FALSE)
+```
+
+
+
+## (b)
+
+`R/plot_fit.R` 스크립트를 작성하여 데이터를 불러오고 시각화하였다. 데이터가 사인 함수 형태의 비선형 구조를 가지므로 직선 회귀(`lm`) 대신 국소 회귀인 `loess`를 사용하였다.
+
+```{r}
+library(ggplot2)
+
+dat = read.csv(here::here("data", "sim_data.csv"))
+
+p = ggplot(dat, aes(x = x, y = y)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "loess", formula = y ~ x, span = 0.3) +
+  labs(title = "Scatter plot with LOESS fit") +
+  theme_minimal()
+
+p
+```
+
+## (c)
+
+`ggsave()`를 이용하여 (b)의 그림을 `plots/` 폴더에 저장하였다.
+
+```{r}
+ggsave(here::here("plots", "scatter_loess.png"), plot = p,
+       width = 6, height = 4, dpi = 300)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
