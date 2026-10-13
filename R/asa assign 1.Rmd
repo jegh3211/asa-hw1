@@ -52,7 +52,11 @@ ggsave(here::here("plots", "scatter_loess.png"), plot = p,
 ```
 
 
+## (d)
 
+RStudio에서 Git 버전 관리를 사용하여 commit한 후 GitHub에 업로드하였다.
+
+GitHub 저장소 링크: https://github.com/jegh3211/asa-hw1
 
 
 
