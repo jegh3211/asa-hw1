@@ -257,9 +257,97 @@ f(res_num$root)
 f(res_exact$root)
 ```
 
+# Problem 4
+
+## (a) Left Rectangle
+
+```{r}
+left_rect = function(f, a, b, n) {
+  h = (b - a) / n
+  x = a + (0:(n - 1)) * h          # x_0, ..., x_{n-1}
+  h * sum(f(x))
+}
+```
+
+## (b) Trapezoid
+
+```{r}
+trapezoid = function(f, a, b, n) {
+  h = (b - a) / n
+  x = a + (0:n) * h                # x_0, ..., x_n
+  fx = f(x)
+  h / 2 * (fx[1] + 2 * sum(fx[-c(1, n + 1)]) + fx[n + 1])
+}
+```
+
+## (c) Simpson
+
+```{r}
+simpson = function(f, a, b, n) {
+  if (n %% 2 != 0) stop("Simpson 방법은 n이 짝수여야 합니다.")
+  h = (b - a) / n
+  x = a + (0:n) * h
+  fx = f(x)
+  i = 0:n
+  odd  = i[i %% 2 == 1]                    # 홀수 번째 점
+  even = i[i %% 2 == 0 & i != 0 & i != n]  # 양 끝을 뺀 짝수 번째 점
+  h / 3 * (fx[1] + 4 * sum(fx[odd + 1]) + 2 * sum(fx[even + 1]) + fx[n + 1])
+}
+```
+
+## (d)
+
+$\int_0^\pi \sin(x)\,dx = 2$이다. $n = 100$으로 세 방법을 계산하였다.
+
+```{r}
+res_d = c(
+  left_rect = left_rect(sin, 0, pi, 100),
+  trapezoid = trapezoid(sin, 0, pi, 100),
+  simpson   = simpson(sin, 0, pi, 100)
+)
+print(res_d, digits = 12)
+
+# 참값 2와의 차이
+print(abs(res_d - 2), digits = 4)
+```
 
 
 
+## (e)
+
+$n = 10, 30, 60, 100, 150, 200$에 대해 참값 2와의 절대오차를 계산하고 log-log 그래프로 비교하였다.
+
+```{r}
+ns = c(10, 30, 60, 100, 150, 200)
+
+err_df = data.frame(
+  n = rep(ns, 3),
+  method = rep(c("left_rect", "trapezoid", "simpson"), each = length(ns)),
+  error = c(
+    abs(sapply(ns, function(n) left_rect(sin, 0, pi, n)) - 2),
+    abs(sapply(ns, function(n) trapezoid(sin, 0, pi, n)) - 2),
+    abs(sapply(ns, function(n) simpson(sin, 0, pi, n)) - 2)
+  )
+)
+
+# 오차 표 (가로: 방법, 세로: n)
+err_table = reshape(err_df, idvar = "n", timevar = "method", direction = "wide")
+print(err_table, digits = 4)
+
+# log-log 그래프
+ggplot(err_df, aes(x = n, y = error, color = method, shape = method, linetype = method)) +
+  geom_line() +
+  geom_point(size = 2.5) +
+  scale_x_log10() +
+  scale_y_log10() +
+  labs(title = "Absolute error of numerical integration (log-log)",
+       x = "n (log scale)", y = "|approx - 2| (log scale)") +
+  theme_minimal()
+
+# log(error) ~ log(n)의 기울기 = 수렴 속도
+sapply(split(err_df, err_df$method),
+       function(d) coef(lm(log(error) ~ log(n), data = d))[2])
+```
 
 
 
