@@ -151,10 +151,111 @@ all.equal(quick_sort(x, decreasing = TRUE), sort(x, decreasing = TRUE))
 
 
 
+# Problem 3
+
+## (a)
+
+전진, 후진, 중심차분을 `method` 인자로 선택할 수 있는 수치 미분 함수를 구현하였다. $f(x) = \cos(x) - x$의 해석적 도함수는 $f'(x) = -\sin(x) - 1$이며, $[0, 2\pi]$를 100개의 점으로 균등 분할하여 비교하였다.
+
+```{r}
+library(ggplot2)
+
+num_deriv = function(f, x, h = 1e-6, method = c("central", "forward", "backward")) {
+  method = match.arg(method)
+  if (method == "forward") {
+    (f(x + h) - f(x)) / h
+  } else if (method == "backward") {
+    (f(x) - f(x - h)) / h
+  } else {
+    (f(x + h) - f(x - h)) / (2 * h)
+  }
+}
+
+f = function(x) cos(x) - x
+fprime = function(x) -sin(x) - 1          # 해석적 도함수
+
+xs = seq(0, 2*pi, length.out = 100)
+
+# 세 방법으로 계산한 결과를 하나의 표로 모으기
+res = rbind(
+  data.frame(x = xs, method = "forward",  value = num_deriv(f, xs, method = "forward")),
+  data.frame(x = xs, method = "backward", value = num_deriv(f, xs, method = "backward")),
+  data.frame(x = xs, method = "central",  value = num_deriv(f, xs, method = "central"))
+)
+res$error = abs(res$value - fprime(res$x))  # 해석적 도함수와의 차이
+
+# 그림 1: 해석적 도함수(검은 선)와 수치 미분(점)
+ggplot() +
+  geom_line(data = data.frame(x = xs, y = fprime(xs)), aes(x = x, y = y),
+            linewidth = 1) +
+  geom_point(data = res, aes(x = x, y = value, color = method),
+             size = 1.2, alpha = 0.7) +
+  labs(title = "Analytic vs numerical derivative",
+       y = "f'(x)", color = "method") +
+  theme_minimal()
+
+# 그림 2: 방법별 절대오차 (로그 스케일)
+ggplot(res, aes(x = x, y = pmax(error, 1e-16), color = method)) +
+  geom_line() +
+  scale_y_log10() +
+  labs(title = "Absolute error of numerical derivative",
+       y = "|numerical - analytic| (log scale)") +
+  theme_minimal()
+
+# 방법별 평균 절대오차
+aggregate(error ~ method, data = res, FUN = mean)
+```
 
 
 
 
+## (b)
+
+`fprime`이 주어지면 해당 도함수를 사용하고, `NULL`이면 (a)에서 구현한 `num_deriv()`의 중심차분(`method = "central"`)과 인자 `h`를 이용하여 도함수를 근사한다. $|x_t - x_{t-1}| < \varepsilon$이면 수렴한 것으로 보고 종료한다.
+
+```{r}
+newton = function(f, fprime = NULL, x0, maxiter = 100, h = 1e-6, epsilon = 1e-10) {
+  # 도함수가 없으면 중심차분 수치미분으로 대체
+  if (is.null(fprime)) {
+    fprime = function(x) num_deriv(f, x, h = h, method = "central")
+  }
+
+  x_old = x0
+  for (t in 1:maxiter) {
+    x_new = x_old - f(x_old) / fprime(x_old)   # Newton-Raphson 업데이트
+
+    if (abs(x_new - x_old) < epsilon) {         # 수렴 판정
+      return(list(root = x_new, iter = t, converged = TRUE))
+    }
+    x_old = x_new
+  }
+
+  warning("maxiter 안에 수렴하지 않았습니다.")
+  list(root = x_old, iter = maxiter, converged = FALSE)
+}
+```
+
+## (c)
+
+초깃값 $x_0 = 0.5$에서 수치미분 버전과 도함수 제공 버전을 각각 실행하였다.
+
+```{r}
+f = function(x) cos(x) - x
+fprime = function(x) -sin(x) - 1
+
+# 수치미분 버전 (fprime을 주지 않음)
+res_num = newton(f, x0 = 0.5)
+res_num
+
+# 도함수 제공 버전
+res_exact = newton(f, fprime = fprime, x0 = 0.5)
+res_exact
+
+# 두 결과 비교 및 f(root)가 0에 가까운지 확인
+print(c(numerical = res_num$root, exact = res_exact$root), digits = 12)
+f(res_num$root)
+f(res_exact$root)
+```
 
 
 
