@@ -1,6 +1,6 @@
 library(ggplot2)
 
-dat = read.csv("data/sim_data.csv")
+dat = read.csv(here::here("data", "sim_data.csv"))
 
 p = ggplot(dat, aes(x = x, y = y)) +
   geom_point(alpha = 0.6) +
@@ -9,3 +9,6 @@ p = ggplot(dat, aes(x = x, y = y)) +
   theme_minimal()
 
 print(p)
+
+ggsave(here::here("plots", "scatter_loess.png"), plot = p,
+       width = 6, height = 4, dpi = 300)
