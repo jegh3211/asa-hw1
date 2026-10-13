@@ -425,3 +425,140 @@ solve(A, b)
 all.equal(x, solve(A, b))
 ```
 
+# Problem 6
+
+## (a)
+
+두 점 사이의 Gaussian kernel 값을 계산하는 함수와, 이를 이용해 커널 행렬을 만드는 함수를 작성하였다.
+
+```{r}
+gauss_kernel = function(x, xprime, rho = 1) {
+  exp(-rho * sum((x - xprime)^2))
+}
+
+# 행렬 X1의 각 행과 X2의 각 행 사이의 커널 값으로 행렬 만들기
+kernel_matrix = function(X1, X2, rho = 1) {
+  X1 = as.matrix(X1)
+  X2 = as.matrix(X2)
+  K = matrix(0, nrow(X1), nrow(X2))
+  for (i in 1:nrow(X1)) {
+    for (j in 1:nrow(X2)) {
+      K[i, j] = gauss_kernel(X1[i, ], X2[j, ], rho)
+    }
+  }
+  K
+}
+
+gauss_kernel(0, 0)     # 같은 점: 1
+gauss_kernel(0, 1)     # exp(-1)
+```
+
+## (b)
+
+$\hat\alpha = (K + \lambda I_n)^{-1} y$를 계산하고, 새로운 데이터 예측과 시각화에 필요한 학습 데이터, $\hat\alpha$, $\rho$, $\lambda$를 저장한 뒤 class를 `krr`로 지정하였다.
+
+```{r}
+krr = function(X, y, rho = 1, lambda = 1e-4) {
+  X = as.matrix(X)
+  n = nrow(X)
+  K = kernel_matrix(X, X, rho)
+  alpha = solve(K + lambda * diag(n), y)   # (K + lambda I)^{-1} y
+
+  obj = list(alpha = as.vector(alpha), X = X, y = y,
+             rho = rho, lambda = lambda,
+             fitted = as.vector(K %*% alpha))
+  class(obj) = "krr"                       # 이름표 붙이기
+  obj
+}
+```
+
+## (c)
+
+$\hat f(x) = k(x, X)^\top \hat\alpha$를 계산하는 `predict.krr()`을 작성하였다.
+
+```{r}
+predict.krr = function(object, newdata, ...) {
+  newdata = as.matrix(newdata)
+  K_new = kernel_matrix(newdata, object$X, object$rho)  # 새 점 x 학습 점
+  as.vector(K_new %*% object$alpha)
+}
+```
+
+## (d)
+
+산점도와 추정 함수 $\hat f(x)$를 그리는 `plot.krr()`을 작성하였다. 참 함수가 주어지면 함께 표시한다.
+
+```{r}
+plot.krr = function(x, ftrue = NULL, ngrid = 300, ...) {
+  if (ncol(x$X) != 1) stop("1차원 입력만 시각화할 수 있습니다.")
+
+  grid = seq(min(x$X), max(x$X), length.out = ngrid)
+  fhat = predict(x, grid)
+
+  plot(x$X[, 1], x$y, pch = 16, col = "gray50",
+       xlab = "x", ylab = "y",
+       main = sprintf("KRR fit (rho = %g, lambda = %g)", x$rho, x$lambda), ...)
+  lines(grid, fhat, col = "red", lwd = 2)
+
+  if (!is.null(ftrue)) {
+    lines(grid, ftrue(grid), col = "blue", lwd = 2, lty = 2)
+    legend("bottomleft", c("data", "KRR fit", "true f"),
+           col = c("gray50", "red", "blue"), pch = c(16, NA, NA),
+           lty = c(NA, 1, 2), lwd = c(NA, 2, 2), bty = "n")
+  } else {
+    legend("bottomleft", c("data", "KRR fit"),
+           col = c("gray50", "red"), pch = c(16, NA),
+           lty = c(NA, 1), lwd = c(NA, 2), bty = "n")
+  }
+  invisible(x)
+}
+```
+
+## (e)
+
+```{r}
+set.seed(1)
+n = 150
+X = matrix(runif(n, -1, 1), ncol = 1)
+ftrue = function(x) sin(2*pi*x) + 0.5*cos(4*pi*x)
+y = ftrue(X[,1]) + rnorm(n, sd = 0.1)
+
+# 기본값 (rho = 1, lambda = 1e-4)으로 적합
+fit1 = krr(X, y)
+class(fit1)
+
+# 새로운 점에서의 예측
+x_new = c(-0.5, 0, 0.5)
+predict(fit1, x_new)
+ftrue(x_new)
+
+plot(fit1, ftrue = ftrue)
+```
+
+기본값 $\rho = 1$에서는 커널의 폭이 데이터 범위 $[-1, 1]$에 비해 너무 넓어 빠르게 진동하는 참 함수를 충분히 따라가지 못한다(과소적합). $\rho$를 키워 커널 폭을 좁히면 적합이 크게 개선된다.
+
+```{r}
+fit10 = krr(X, y, rho = 10)
+predict(fit10, x_new)
+
+plot(fit10, ftrue = ftrue)
+
+# 참 함수와의 RMSE 비교
+grid = seq(-1, 1, length.out = 300)
+c(rho1  = sqrt(mean((predict(fit1,  grid) - ftrue(grid))^2)),
+  rho10 = sqrt(mean((predict(fit10, grid) - ftrue(grid))^2)))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
